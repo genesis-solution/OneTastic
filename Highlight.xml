@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Macro id="M809E42D36C9642F59329983D02BA66DF" name="Highlight" category="Text" description="Extracts any highlighted text and prints it at the end of the page" version="39">
-  <Metadata lastModifiedDate="2024-05-31T12:08:32.000Z" />
+<Macro id="M809E42D36C9642F59329983D02BA66DF" name="Highlight" category="Text" description="Extracts any highlighted text and prints it at the end of the page" version="40">
+  <Metadata lastModifiedDate="2024-10-31T07:16:44.000Z" />
   <Expression>$scope = "Current Page"</Expression>
   <Comment text="Decide the scope" />
   <Expression>$includePath = false</Expression>
@@ -15,11 +15,11 @@
     <Expression>$link = ""</Expression>
     <ForEach var="t">
       <Array>$p.texts</Array>
-      <If collapsed="true">
+      <If>
         <Condition>($t.value == "") || ($t.highlightColor == "automatic") || ($t.highlightColor != "#ffff00")</Condition>
         <Continue>1</Continue>
       </If>
-      <If collapsed="true">
+      <If>
         <Condition>$link == ""</Condition>
         <Expression>$link = $p.hyperlink</Expression>
         <If>
@@ -41,7 +41,10 @@
     <Comment text="Create a new page" />
     <Expression>$Page = InsertObject(GetCurrentSection(), "Page", -1)</Expression>
     <Comment text="Set the page title" />
-    <Expression>$Page.title.paragraph.text = $value[0].value</Expression>
+    <Expression>$Page.title.paragraph.text = $value[0].value + " "</Expression>
+    <Expression>$Text = InsertObject($Page.title.paragraph, "Text", -1)</Expression>
+    <Expression>$Text.value = "(Go back)"</Expression>
+    <Expression>$Text.hyperlink = $value[1]</Expression>
     <Comment text="Create page content" />
     <Expression>$Outline = InsertObject($Page, "Outline", -1)</Expression>
     <Expression>$Paragraph = InsertObject($Outline, "Paragraph", -1)</Expression>
@@ -50,17 +53,7 @@
 
 
 
-
-
-
-
-
 "</Expression>
-    <Expression>$Outline = InsertObject($Page, "Outline", -1)</Expression>
-    <Expression>$Paragraph = InsertObject($Outline, "Paragraph", 0)</Expression>
-    <Expression>$Text = InsertObject($Paragraph, "Text", -1)</Expression>
-    <Expression>$Text.value = "Go back"</Expression>
-    <Expression>$Text.hyperlink = $value[1]</Expression>
     <Expression>$value[0].hyperlink = $Page.hyperlink</Expression>
   </ForEach>
 </Macro>
