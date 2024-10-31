@@ -142,6 +142,7 @@
   <Expression type="empty"></Expression>
   <ForEach var="value">
     <Array>$Texts</Array>
+    <Expression>$newPageLink = ""</Expression>
     <Comment text="Execute the commands" />
     <ForEach var="command">
       <Array>$commands</Array>
@@ -152,6 +153,7 @@
         <Expression>$Page = InsertObject(GetCurrentSection(), "Page", -1)</Expression>
         <Comment text="Set the page title" />
         <Expression>$Page.title.paragraph.text = $value[0].value + " "</Expression>
+        <Expression>$newPageLink = $Page.hyperlink</Expression>
         <Expression>$Text = InsertObject($Page.title.paragraph, "Text", -1)</Expression>
         <Expression>$Text.value = "(ToDo List)"</Expression>
         <Expression>$Text.hyperlink = $value[1]</Expression>
@@ -254,5 +256,8 @@
         </If>
       </If>
     </ForEach>
+    <Expression>$value[0].hyperlink = $newPageLink</Expression>
+    <Expression>$value[0].highlightColor = "#ffffff"</Expression>
+    <Expression type="empty"></Expression>
   </ForEach>
 </Macro>
