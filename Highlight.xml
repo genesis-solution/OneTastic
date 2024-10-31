@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Macro id="M809E42D36C9642F59329983D02BA66DF" name="Highlight" category="Text" description="Extracts any highlighted text and prints it at the end of the page" version="40">
-  <Metadata lastModifiedDate="2024-10-31T07:28:26.000Z" />
+  <Metadata lastModifiedDate="2024-10-31T07:31:50.000Z" />
   <Expression>$scope = "Current Page"</Expression>
   <Comment text="Decide the scope" />
   <Expression>$includePath = false</Expression>
   <Expression>$curPage = true</Expression>
   <Expression>$scopeObj = GetCurrentPage()</Expression>
+  <Expression>$currentSection = GetCurrentSection()</Expression>
   <Comment text="Collect info for all the pages in the scope" />
   <Expression>$Paragraphs = Array()</Expression>
   <Expression>$sectionPaths = Array()</Expression>
@@ -35,25 +36,223 @@
     <Condition>Array_Length($Texts) == 0</Condition>
     <Expression>DialogBox_Show(DialogBox_Create("No highlighted text found in " &amp; $scope))</Expression>
     <Expression>ExitMacro(false)</Expression>
+    <Expression type="empty"></Expression>
   </If>
+  <Expression>$BasePages = QueryObjects("Page", $currentSection)</Expression>
+  <Expression>$targetPage = 0</Expression>
+  <ForEach var="basePage">
+    <Array>$BasePages</Array>
+    <If>
+      <Condition>$basePage.name == "ToDoTemplate"</Condition>
+      <Expression>$targetPage = $basePage</Expression>
+      <Break type="empty"></Break>
+      <Expression type="empty"></Expression>
+    </If>
+  </ForEach>
+  <If>
+    <Condition>$targetPage == 0</Condition>
+    <Expression>DialogBox_Show(DialogBox_Create("There is no template page to copy!"))</Expression>
+    <Expression>ExitMacro(false)</Expression>
+    <Expression type="empty"></Expression>
+  </If>
+  <Expression>$commandsToProcess = Array()</Expression>
+  <Expression>Array_PushBack($commandsToProcess, Array("Page", $targetPage, $targetPage.name))</Expression>
+  <Expression>$commands = Array()</Expression>
+  <Comment text="ADD HERE" />
+  <While>
+    <Condition>Array_Length($commandsToProcess) &gt; 0</Condition>
+    <Comment text="Get the first command" />
+    <Expression>$command = Array_PopFront($commandsToProcess)</Expression>
+    <Comment text="Move it to the list of new commands" />
+    <Expression>Array_PushBack($commands, $command)</Expression>
+    <Comment text="Expand the command into sub commands" />
+    <Expression>$type = $command[0]</Expression>
+    <If>
+      <Condition>$type == "Page"</Condition>
+      <Expression>$page = $command[1]</Expression>
+      <Comment text="Expand page into its outlines" />
+      <Expression>$outlines = $page.outlines</Expression>
+      <While>
+        <Condition>Array_Length($outlines) &gt; 0</Condition>
+        <Expression>$outline = Array_PopBack($outlines)</Expression>
+        <Expression>Array_PushFront($commandsToProcess, Array("Outline", $outline, $outline.x, $outline.y, $outline.z, $outline.width, $outline.height, $outline.sizeSetByUser))</Expression>
+      </While>
+      <Continue>1</Continue>
+    </If>
+    <If>
+      <Condition>($type == "Outline") || ($type == "Cell")</Condition>
+      <Comment text="Expand outline or cell to its paragraphs" />
+      <Expression>$outlineOrCell = $command[1]</Expression>
+      <Expression>$paragraphs = $outlineOrCell.paragraphs</Expression>
+      <While>
+        <Condition>Array_Length($paragraphs) &gt; 0</Condition>
+        <Expression>$p = Array_PopBack($paragraphs)</Expression>
+        <If>
+          <Condition>$p.contentType == "table"</Condition>
+          <Expression>$table = Array_PopBack(QueryObjects("Table", $p))</Expression>
+          <Expression>Array_PushFront($commandsToProcess, Array("Table", $table, $table.bordersVisible, $p.alignment, $p.indent, $p.rtl))</Expression>
+        </If>
+        <Else>
+          <Expression>$textCommands = Array()</Expression>
+          <ForEach var="t">
+            <Array>QueryObjects("Text", $p)</Array>
+            <If>
+              <Condition>GetParentOfType($t, "Paragraph", $parent) &amp;&amp; ($parent.objectId == $p.objectId)</Condition>
+              <Expression>Array_PushBack($textCommands, Array("Text", $t.value, $t.bold, $t.italic, $t.underline, $t.strikethrough, $t.supersub, $t.fontColor, $t.fontName, $t.fontSize, $t.highlightColor, $t.hyperlink, $t.lang))</Expression>
+            </If>
+          </ForEach>
+          <Expression>Array_PushFront($commandsToProcess, Array("Paragraph", $p.alignment, $p.indent, $p.rtl, $textCommands))</Expression>
+        </Else>
+      </While>
+      <Continue>1</Continue>
+    </If>
+    <If>
+      <Condition>$type == "Table"</Condition>
+      <Expression>$table = $command[1]</Expression>
+      <Comment text="Expand table to its columns" />
+      <Expression>$columns = $table.columns</Expression>
+      <While>
+        <Condition>Array_Length($columns) &gt; 0</Condition>
+        <Expression>$column = Array_PopBack($columns)</Expression>
+        <Expression>Array_PushFront($commandsToProcess, Array("Column", $column.index, $column.isLocked, $column.width))</Expression>
+      </While>
+      <Comment text="Expand table to its rows" />
+      <Expression>$rows = $table.rows</Expression>
+      <While>
+        <Condition>Array_Length($rows) &gt; 0</Condition>
+        <Expression>$row = Array_PopBack($rows)</Expression>
+        <Expression>Array_PushFront($commandsToProcess, Array("Row", $row))</Expression>
+      </While>
+      <Continue>1</Continue>
+    </If>
+    <If>
+      <Condition>$type == "Row"</Condition>
+      <Comment text="Expand row to its cells" />
+      <Expression>$row = $command[1]</Expression>
+      <Expression>$cells = $row.cells</Expression>
+      <While>
+        <Condition>Array_Length($cells) &gt; 0</Condition>
+        <Expression>$cell = Array_PopBack($cells)</Expression>
+        <Expression>Array_PushFront($commandsToProcess, Array("Cell", $cell))</Expression>
+      </While>
+      <Continue>1</Continue>
+    </If>
+  </While>
+  <Comment text="Find the section in each notebook and copy the page" />
+  <Expression type="empty"></Expression>
   <ForEach var="value">
     <Array>$Texts</Array>
-    <Comment text="Create a new page" />
-    <Expression>$Page = InsertObject(GetCurrentSection(), "Page", -1)</Expression>
-    <Comment text="Set the page title" />
-    <Expression>$Page.title.paragraph.text = $value[0].value + " "</Expression>
-    <Expression>$Text = InsertObject($Page.title.paragraph, "Text", -1)</Expression>
-    <Expression>$Text.value = "(ToDo List)"</Expression>
-    <Expression>$Text.hyperlink = $value[1]</Expression>
-    <Comment text="Create page content" />
-    <Expression>$Outline = InsertObject($Page, "Outline", -1)</Expression>
-    <Expression>$Paragraph = InsertObject($Outline, "Paragraph", -1)</Expression>
-    <Expression>$Paragraph.text = "
-
-
-
-
-"</Expression>
-    <Expression>$value[0].hyperlink = $Page.hyperlink</Expression>
+    <Comment text="Execute the commands" />
+    <ForEach var="command">
+      <Array>$commands</Array>
+      <Expression>$type = $command[0]</Expression>
+      <If>
+        <Condition>$type == "Page"</Condition>
+        <Comment text="Create the page" />
+        <Expression>$Page = InsertObject(GetCurrentSection(), "Page", -1)</Expression>
+        <Comment text="Set the page title" />
+        <Expression>$Page.title.paragraph.text = $value[0].value + " "</Expression>
+        <Expression>$Text = InsertObject($Page.title.paragraph, "Text", -1)</Expression>
+        <Expression>$Text.value = "(ToDo List)"</Expression>
+        <Expression>$Text.hyperlink = $value[1]</Expression>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Outline"</Condition>
+        <Comment text="Create an outline" />
+        <Expression>$outline = InsertObject($Page, "Outline", -1)</Expression>
+        <Comment text="We will keep a stack of outline/table/row/cell objects for this outline around to create the paragraphs in" />
+        <Expression>$objectStack = Array($outline)</Expression>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Paragraph"</Condition>
+        <Comment text="Create a paragraph" />
+        <Expression>$p = InsertObject($objectStack[0], "Paragraph", -1)</Expression>
+        <Expression>$p.alignment = $command[1]</Expression>
+        <Expression>$p.indent = $command[2]</Expression>
+        <Expression>$p.rtl = $command[3]</Expression>
+        <Expression>$textCommands = $command[4]</Expression>
+        <ForEach var="textCommand">
+          <Array>$textCommands</Array>
+          <Comment text="Create a text" />
+          <Expression>$t = InsertObject($p, "Text", -1)</Expression>
+          <Expression>$t.value = $textCommand[1]</Expression>
+          <Expression>$t.bold = $textCommand[2]</Expression>
+          <Expression>$t.italic = $textCommand[3]</Expression>
+          <Expression>$t.underline = $textCommand[4]</Expression>
+          <Expression>$t.strikethrough = $textCommand[5]</Expression>
+          <Expression>$t.supersub = $textCommand[6]</Expression>
+          <Expression>$t.fontColor = $textCommand[7]</Expression>
+          <Expression>$t.fontName = $textCommand[8]</Expression>
+          <Expression>$t.fontSize = $textCommand[9]</Expression>
+          <If>
+            <Condition>$textCommand[10] != "#000000"</Condition>
+            <Expression>$t.highlightColor = $textCommand[10]</Expression>
+          </If>
+          <Expression>$t.hyperlink = $textCommand[11]</Expression>
+          <Expression>$t.lang = $textCommand[12]</Expression>
+        </ForEach>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Table"</Condition>
+        <Comment text="Create a table" />
+        <Expression>$table = InsertObject($objectStack[0], "Table", -1)</Expression>
+        <Expression>$table.bordersVisible = $command[2]</Expression>
+        <Expression>GetParentOfType($table, "Paragraph", $p)</Expression>
+        <Expression>$p.alignment = $command[3]</Expression>
+        <Expression>$p.indent = $command[4]</Expression>
+        <Expression>$p.rtl = $command[5]</Expression>
+        <Expression>Array_PushFront($objectStack, $table)</Expression>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Row"</Condition>
+        <Comment text="Create a row" />
+        <If>
+          <Condition>$objectStack[0].type == "Cell"</Condition>
+          <Comment text="We still have the previous row and its last cell on the stack, remove them to reach the table" />
+          <Expression>Array_PopFront($objectStack)</Expression>
+          <Expression>Array_PopFront($objectStack)</Expression>
+        </If>
+        <Expression>$row = InsertObject($objectStack[0], "Row", -1)</Expression>
+        <Expression>Array_PushFront($objectStack, $row)</Expression>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Cell"</Condition>
+        <Comment text="Create a cell" />
+        <If>
+          <Condition>$objectStack[0].type == "Cell"</Condition>
+          <Comment text="We still have the previous cell on the stack, remove it to reach the row" />
+          <Expression>Array_PopFront($objectStack)</Expression>
+        </If>
+        <Expression>$cell = InsertObject($objectStack[0], "Cell", -1)</Expression>
+        <Expression>Array_PushFront($objectStack, $cell)</Expression>
+        <Continue>1</Continue>
+      </If>
+      <If>
+        <Condition>$type == "Column"</Condition>
+        <Comment text="Columns are already created when rows and cells are created, just set its properties" />
+        <If>
+          <Condition>$objectStack[0].type == "Cell"</Condition>
+          <Comment text="Pop the cell and row from the stack to reach the table" />
+          <Expression>Array_PopFront($objectStack)</Expression>
+          <Expression>Array_PopFront($objectStack)</Expression>
+        </If>
+        <Expression>$table = $objectStack[0]</Expression>
+        <Expression>$index = $command[1]</Expression>
+        <Expression>$column = $table.columns[$index]</Expression>
+        <Expression>$column.isLocked = $command[2]</Expression>
+        <Expression>$column.width = $command[3]</Expression>
+        <Comment text="If we are done with this table, pop it from the stack" />
+        <If>
+          <Condition>$index == ($table.colCount - 1)</Condition>
+          <Expression>Array_PopFront($objectStack)</Expression>
+          <Expression type="empty"></Expression>
+        </If>
+      </If>
+    </ForEach>
   </ForEach>
 </Macro>
