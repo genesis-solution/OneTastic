@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Macro id="M809E42D36C9642F59329983D02BA66DF" name="Highlight" category="Text" description="Extracts any highlighted text and prints it at the end of the page" version="40">
-  <Metadata lastModifiedDate="2024-10-31T07:16:44.000Z" />
+  <Metadata lastModifiedDate="2024-10-31T07:28:26.000Z" />
   <Expression>$scope = "Current Page"</Expression>
   <Comment text="Decide the scope" />
   <Expression>$includePath = false</Expression>
@@ -43,7 +43,7 @@
     <Comment text="Set the page title" />
     <Expression>$Page.title.paragraph.text = $value[0].value + " "</Expression>
     <Expression>$Text = InsertObject($Page.title.paragraph, "Text", -1)</Expression>
-    <Expression>$Text.value = "(Go back)"</Expression>
+    <Expression>$Text.value = "(ToDo List)"</Expression>
     <Expression>$Text.hyperlink = $value[1]</Expression>
     <Comment text="Create page content" />
     <Expression>$Outline = InsertObject($Page, "Outline", -1)</Expression>
